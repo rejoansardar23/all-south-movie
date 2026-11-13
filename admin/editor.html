@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Southscreen editorial workspace</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark;color:#f5f4f7;background:#111215}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #ffffff19;padding:22px max(24px,calc((100% - 1100px)/2))}
+main{max-width:1100px;margin:35px auto;padding:0 24px 70px}
+h1{font-size:clamp(25px,4vw,40px);margin:0 0 12px}
+p{color:#aaa9b2;line-height:1.65}a{color:#ff9f89}
+.panel{padding:24px;border:1px solid #ffffff1e;border-radius:14px;background:#1d1e23}
+.notice{padding:15px 18px;margin:24px 0;border-left:3px solid #ff8066;background:#29221f}
+label{display:block;font-size:12px;font-weight:700;margin:0 0 9px;color:#dfdce4}
+input,textarea,select{display:block;width:100%;font:inherit;background:#15161b;border:1px solid #ffffff28;color:#f7f6f9;border-radius:8px;padding:12px;margin-bottom:22px}
+textarea{resize:vertical;min-height:125px;line-height:1.6}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid #ff9c85;outline-offset:2px}
+button{font:inherit;cursor:pointer;min-height:42px;padding:10px 15px;color:#fff;background:#303139;border:1px solid #ffffff25;border-radius:8px}
+button.primary{background:#ed624c;border-color:#ed624c}
+button:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+#status{min-height:23px;font-size:13px;color:#99d8b0}
+.movie-head{display:flex;gap:16px;align-items:center;margin:15px 0 22px}
+.movie-head img{height:100px;width:68px;object-fit:cover;background:#36363d;border-radius:6px}
+.movie-head strong{display:block;margin-bottom:6px}
+.small{font-size:12px}
+.hidden{display:none}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.panel{padding:16px}header{padding:18px 24px}}
+</style>
+</head>
+<body>
+<header><strong>southscreen <span style="color:#ff8066">/ editorial</span></strong><a href="../index.html">Back to website</a></header>
+<main>
+<h1>Editorial workspace</h1>
+<p>Review and enhance movie metadata while preserving the original import. This editor works in your browser; it cannot directly publish changes or authenticate an administrator.</p>
+<div class="notice"><strong>Local editing only.</strong> Changes remain in this browser until you export <code>curated.json</code> and commit the file at <code>data/curated.json</code> on the development branch. Do not include copyrighted descriptions you lack permission to use.</div>
+<div class="panel">
+<label for="search">Find a movie</label>
+<input id="search" type="search" placeholder="Search for a movie title or year" autocomplete="off">
+<label for="movie">Select matching movie</label>
+<select id="movie" aria-label="Select movie"></select>
+<div id="movie-head" class="movie-head" aria-live="polite"></div>
+<form id="editor">
+<div class="grid">
+<div><label for="director">Director (reviewed)</label><input id="director" maxlength="180" placeholder="Director name"></div>
+<div><label for="runtime">Runtime in minutes (verified)</label><input id="runtime" type="number" min="1" max="600" step="1" placeholder="e.g. 150"></div>
+</div>
+<label for="cast">Cast names (comma-separated, reviewed)</label>
+<input id="cast" maxlength="600" placeholder="Performer One, Performer Two">
+<label for="synopsis">Original or appropriately licensed synopsis</label>
+<textarea id="synopsis" maxlength="1400" placeholder="Write a brief original, spoiler-free description."></textarea>
+<label for="trailer">Verified official YouTube trailer URL (optional)</label>
+<input id="trailer" type="url" maxlength="400" placeholder="https://www.youtube.com/watch?v=...">
+<div class="actions">
+<button class="primary" type="submit">Save local draft</button>
+<button id="export" type="button">Export curated.json</button>
+<button id="import" type="button">Import curated.json</button>
+</div>
+</form>
+<input id="file" type="file" class="hidden" accept="application/json,.json">
+<p class="small">The exported file is checked by the repository's catalog tests. Only movie IDs already present in the catalog can be edited.</p>
+<div id="status" role="status" aria-live="polite"></div>
+</div>
+</main>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const safeText=v=>String(v??"").trim();
+let movies=[], chosen=null, draft={version:1,movies:{}};
+const draftKey="southscreen-editorial-draft-v1";
+const allowedKeys=["director","runtime","cast","synopsis","trailer"];
+function cleanRecord(input) {
+ if(!input||typeof input!=="object"||Array.isArray(input))throw Error("Invalid movie record");
+ const out={};
+ for(const k of allowedKeys){
+   if(!(k in input)||input[k]===null||input[k]==="")continue;
+   if(k==="runtime") {
+     const num=Number(input[k]);
+     if(!Number.isInteger(num)||num<1||num>600)throw Error("Runtime must be from 1 to 600 minutes");
+     out.runtime=num;
+   }else if(k==="cast"){
+     if(!Array.isArray(input[k])||input[k].length>30)throw Error("Cast must be an array with up to 30 entries");
+     const list=input[k].map(safeText).filter(Boolean);
+     if(list.some(name=>name.length>120))throw Error("Cast name is too long");
+     if(list.length)out.cast=list;
+   }else{
+     if(typeof input[k]!=="string")throw Error("Invalid "+k);
+     const max=k==="synopsis"?1400:k==="trailer"?400:180;
+     if(input[k].length>max)throw Error(k+" is too long");
+     const v=safeText(input[k]);
+     if(k==="trailer"&&v){
+       let u;try{u=new URL(v)}catch{throw Error("Invalid trailer URL")}
+       const host=u.hostname.toLowerCase();
+       if(u.protocol!=="https:"||!["youtube.com","www.youtube.com","youtu.be","www.youtube-nocookie.com"].includes(host))throw Error("Only HTTPS YouTube trailer links are accepted");
+     }
+     if(v)out[k]=v;
+   }
+ }
+ return out;
+}
+function acceptFile(input){
+ if(!input||input.version!==1||typeof input.movies!=="object"||Array.isArray(input.movies)||input.movies===null)throw Error("Invalid curated.json format");
+ const ids=new Set(movies.map(m=>String(m.id))), cleaned={};
+ for(const [id,value] of Object.entries(input.movies)){
+   if(!ids.has(id))throw Error("Unknown movie ID: "+id);
+   cleaned[id]=cleanRecord(value);
+ }
+ return {version:1,movies:cleaned};
+}
+function status(message,bad=false){$("#status").textContent=message;$("#status").style.color=bad?"#ffb29c":"#99d8b0"}
+function populate(){
+ const query=$("#search").value.toLowerCase().trim();
+ const matches=movies.filter(m=>(m.title+" "+m.year).toLowerCase().includes(query)).slice(0,80);
+ $("#movie").replaceChildren();
+ for(const m of matches){
+   const option=document.createElement("option");option.value=String(m.id);option.textContent=m.title+" ("+m.year+")";$("#movie").append(option);
+ }
+ if(matches.length)$("#movie").value=String(matches.some(m=>m.id===chosen)?chosen:matches[0].id);
+ renderEditor();
+}
+function renderEditor(){
+ const movie=movies.find(m=>String(m.id)===$("#movie").value);
+ if(!movie){chosen=null;$("#movie-head").replaceChildren();$("#editor").hidden=true;return;}
+ chosen=movie.id;$("#editor").hidden=false;
+ const head=$("#movie-head");head.replaceChildren();
+ const img=document.createElement("img");img.src="../"+movie.thumbnail;img.alt="";
+ const info=document.createElement("div"),title=document.createElement("strong"),meta=document.createElement("small");
+ title.textContent=movie.title;meta.textContent=movie.year+" · "+(movie.genres||[]).join(", ");info.append(title,meta);head.append(img,info);
+ const record=draft.movies[String(movie.id)]||{};
+ for(const id of ["director","synopsis","trailer"])$("#"+id).value=record[id]||"";
+ $("#runtime").value=record.runtime||"";
+ $("#cast").value=(record.cast||[]).join(", ");
+ status("Editing movie #"+movie.id);
+}
+function persist(){
+ try{localStorage.setItem(draftKey,JSON.stringify(draft));return true}catch{status("Browser storage unavailable. Export your changes now.",true);return false}
+}
+$("#editor").addEventListener("submit",e=>{
+ e.preventDefault();if(!chosen)return;
+ try{
+  const obj=cleanRecord({
+    director:$("#director").value,
+    runtime:$("#runtime").value||null,
+    cast:$("#cast").value.split(",").map(safeText).filter(Boolean),
+    synopsis:$("#synopsis").value,
+    trailer:$("#trailer").value
+  });
+  if(Object.keys(obj).length)draft.movies[String(chosen)]=obj;else delete draft.movies[String(chosen)];
+  const ok=persist();if(ok)status("Local draft saved. Export curated.json to publish the edits.");
+ }catch(err){status(err.message,true)}
+});
+$("#search").addEventListener("input",populate);
+$("#movie").addEventListener("change",renderEditor);
+$("#export").addEventListener("click",()=>{
+ try{
+   draft=acceptFile(draft);
+   const blob=new Blob([JSON.stringify(draft,null,2)+"\n"],{type:"application/json"});
+   const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="curated.json";a.click();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);status("Downloaded curated.json. Commit it to data/curated.json.");
+ }catch(e){status(e.message,true)}
+});
+$("#import").addEventListener("click",()=>$("#file").click());
+$("#file").addEventListener("change",async e=>{
+ const file=e.target.files&&e.target.files[0];if(!file)return;
+ try{if(file.size>1500000)throw Error("File exceeds 1.5MB");draft=acceptFile(JSON.parse(await file.text()));persist();renderEditor();status("Imported editorial data for "+Object.keys(draft.movies).length+" movies.");}
+ catch(err){status(err.message,true)}
+ finally{e.target.value=""}
+});
+(async()=>{
+ try{
+  const [catRes,curatedRes]=await Promise.all([fetch("../data/catalog.json"),fetch("../data/curated.json")]);
+  if(!catRes.ok||!curatedRes.ok)throw Error("Catalog data could not load");
+  const cat=await catRes.json();movies=cat.movies;
+  draft=acceptFile(await curatedRes.json());
+  try{const local=localStorage.getItem(draftKey);if(local)draft=acceptFile(JSON.parse(local));}catch{status("Stored draft invalid; loaded committed editorial data.",true)}
+  populate();
+ }catch(err){status("Could not initialize editor: "+err.message,true)}
+})();
+</script>
+</body>
+</html>
