@@ -44,3 +44,44 @@ dialog{border:1px solid #ffffff1a;background:#191a1f;color:var(--text);padding:0
   .card-info p{font-size:10px}
   .source-quality-button{min-height:42px;font-size:12px}
 }
+
+/* Southscreen 2.0 visual refinement: stay fast, readable and distinctly cinematic. */
+.site-header{position:sticky;top:0;z-index:60;background:#111215f0;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 2px 20px #0002}
+.hero{background:radial-gradient(circle at 70% 40%,#33303b,#111215 80%)}
+.hero-art img{filter:saturate(1.12) contrast(1.04)}
+.hero-content{position:relative}
+.hero h1{text-shadow:0 3px 34px #0009}
+.collection-section .section-heading h2{font-size:clamp(21px,1.9vw,27px);letter-spacing:-.7px}
+.collection-section .section-heading p{color:#a6a4b0}
+.poster-link{border:1px solid #ffffff0b;box-shadow:0 6px 22px #0003}
+.movie-card{transition:transform .22s ease}
+.movie-card:hover{transform:translateY(-3px)}
+.movie-card:focus-within .poster-link{outline:2px solid #ff8c76;outline-offset:2px}
+.card-info h3{font-size:13px;font-weight:700}
+.card-info p{color:#b5b3bd}
+.source-panel{padding-bottom:38px}
+.provider{border-color:#ffffff15;background:linear-gradient(115deg,#24252d,#202127);transition:border-color .18s ease}
+.provider:hover{border-color:#ffffff36}
+.source-link{min-height:42px;letter-spacing:.12px}
+.source-link:focus-visible,.button:focus-visible,.pill:focus-visible,.header-search:focus-within,.mobile-nav a:focus-visible{outline:2px solid #ff9c88;outline-offset:2px}
+.favorite-button[aria-pressed="true"]{background:#543329;border-color:#ef7058;color:#fff}
+.favorite-button svg{width:17px;height:17px}
+.favorite-button[aria-pressed="true"] svg{fill:#ff806c}
+.list-actions{flex-wrap:wrap;align-items:center}
+.list-actions .pill{min-height:40px;display:inline-flex;align-items:center}
+@media(max-width:640px){
+  .site-header{position:sticky;top:0;z-index:60}
+  .hero{min-height:520px}
+  .hero-art{bottom:35px}
+  .hero h1{font-size:clamp(43px,11vw,62px);line-height:1.08}
+  .hero h1.long-title{font-size:clamp(34px,9vw,48px)}
+  .hero-content{padding-top:160px}
+  .collection-section .section-heading h2{font-size:20px}
+  .card-info h3{font-size:12px}
+  .card-info p{font-size:10px}
+  .source-panel>p,.detail-language{font-size:12px}
+  .source-links{gap:8px}
+  .source-link{padding:10px 14px}
+  .detail-actions{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){.movie-card{transition:none}.movie-card:hover{transform:none}}
