@@ -85,10 +85,3 @@ dialog{border:1px solid #ffffff1a;background:#191a1f;color:var(--text);padding:0
   .detail-actions{flex-wrap:wrap}
 }
 @media(prefers-reduced-motion:reduce){.movie-card{transition:none}.movie-card:hover{transform:none}}
-
-/* Reviewed editorial metadata appears only when supplied by the curator. */
-.detail-synopsis{color:#d9d6dc;font-size:13px;line-height:1.8;max-width:56ch;margin:18px 0}
-.detail-credit{font-size:12px;color:#b3afba;line-height:1.75;margin:7px 0}
-.detail-credit strong{display:inline-block;min-width:72px;margin-right:8px;color:#f1e9e7}
-.trailer-link{display:inline-flex;margin:10px 0 14px;border-color:#ffffff30}
-@media(max-width:640px){.detail-synopsis{font-size:12px}.detail-credit{font-size:11px}.trailer-link{min-height:44px}}
