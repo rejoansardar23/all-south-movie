@@ -26,3 +26,6 @@ jobs:
 
       - name: Validate catalog and original source references
         run: python3 tools/check_catalog.py
+
+      - name: Check reviewed editorial metadata
+        run: python3 tools/check_editorial.py
