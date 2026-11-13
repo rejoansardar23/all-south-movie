@@ -1,5 +1,24 @@
 "use strict";
 
+/* Keep old bookmarks useful while retaining the untouched archive content. */
+(() => {
+  const query = new URLSearchParams(location.search);
+  if (query.get('archive') !== '1') {
+    location.replace('index.html' + location.search + location.hash);
+    return;
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('a[href]').forEach(link => {
+      const url = new URL(link.getAttribute('href'), location.href);
+      if (url.origin === location.origin && /\/messages(?:2|3)?\.html$/.test(url.pathname)) {
+        url.searchParams.set('archive', '1');
+        link.href = url.href;
+      }
+    });
+  });
+})();
+
+
 window.AllowBackFromHistory = false;
 function CheckLocation() {
     var start = "#go_to_message";

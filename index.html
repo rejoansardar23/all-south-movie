@@ -1,34 +1,32 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>All South Hindi Dubbed Movies</title>
-  <meta name="description" content="Browse the All South Hindi dubbed movies archive.">
-  <meta http-equiv="refresh" content="0; url=messages.html">
-  <script>
-    window.location.replace("messages.html" + window.location.search + window.location.hash);
-  </script>
-  <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #111827; color: #f9fafb; }
-    main { max-width: 38rem; padding: 2rem; }
-    h1 { font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.1; }
-    p { color: #cbd5e1; line-height: 1.6; }
-    a { color: #93c5fd; text-underline-offset: .2em; }
-    nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 2rem; }
-    a:focus-visible { outline: 3px solid #fbbf24; outline-offset: 5px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111215">
+<meta name="description" content="Discover South Indian cinema and Hindi-dubbed favourites. Browse films, explore genres, and save your next watch.">
+<meta property="og:title" content="Southscreen — Cinema, collected.">
+<meta property="og:description" content="Your next great movie night starts here.">
+<title>Southscreen — Cinema, collected.</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script type="module" src="assets/app.js"></script>
 </head>
 <body>
-  <main>
-    <h1>All South Hindi Dubbed Movies</h1>
-    <p>Opening the archive. If it does not open automatically, <a href="messages.html">continue to the first page</a>.</p>
-    <nav aria-label="Archive pages">
-      <a href="messages.html">Page 1</a>
-      <a href="messages2.html">Page 2</a>
-      <a href="messages3.html">Page 3</a>
-    </nav>
-  </main>
+<a class="skip-link" href="#main">Skip to movies</a>
+<header class="site-header">
+<a class="brand" href="./" data-nav="home" aria-label="Southscreen home"><img src="assets/favicon.svg" width="38" height="38" alt=""><span>south<span class="brand-light">screen</span><small>CINEMA, COLLECTED.</small></span></a>
+<nav class="desktop-nav" aria-label="Main navigation"><a href="#view=home" data-nav="home">Discover</a><a href="#view=browse" data-nav="browse">Browse all</a><a href="#view=list" data-nav="list">My list <span class="saved-count">0</span></a></nav>
+<form class="header-search" role="search" id="search-form"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="7.2"></circle><path d="m16 16 5 5"></path></svg><label class="sr-only" for="search">Search movies, genres, or years</label><input id="search" type="search" placeholder="Find your next movie…" autocomplete="off" spellcheck="false"><kbd aria-hidden="true">/</kbd></form>
+<button class="icon-button surprise-button" data-action="random" aria-label="Surprise me with a movie" title="Surprise me"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 3 4 4-4 4M3 17h3c4 0 5-10 9-10h6M17 13l4 4-4 4M3 7h3c1 0 2 .7 3 2M15 17h6"></path></svg></button>
+</header>
+<main id="main" tabindex="-1"><div class="loading-state"><div class="loading-mark">s</div><h1>Setting the scene…</h1><p>Bringing your movie collection together.</p></div></main>
+<footer class="site-footer"><a class="footer-wordmark" href="./" data-nav="home">southscreen<span>•</span></a><p>For the love of a good movie.</p><div><span id="collection-footer">Cinema, collected.</span><button class="text-button" data-action="about">About this collection</button><a href="messages.html?archive=1">Original archive ↗</a></div><p class="footer-note">A film discovery collection. Source links open on their original providers.</p></footer>
+<nav class="mobile-nav" aria-label="Mobile navigation"><a href="#view=home" data-nav="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"></path></svg>Discover</a><a href="#view=browse" data-nav="browse"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Browse</a><a href="#view=list" data-nav="list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v19l-7-5-7 5z"></path></svg>My list <span class="saved-count">0</span></a></nav>
+<dialog id="movie-dialog" class="movie-dialog" aria-labelledby="movie-title"></dialog>
+<dialog id="about-dialog" class="about-dialog" aria-labelledby="about-title"><button class="dialog-close icon-button" data-action="close-about" aria-label="Close about collection">✕</button><p class="eyebrow">BEHIND THE COLLECTION</p><h2 id="about-title">Cinema, collected.</h2><p>Southscreen turns the All South Hindi dubbed movies archive into a collection you can explore, search, and make your own.</p><p>Titles, years, languages, quality labels, and source links come from the original posts. Repeat posts are combined. These details describe the archive and are not independently verified.</p><p>Videos stay with their original providers. A source may require its own app or sign-in, and older links may no longer be available.</p><p>Your list and recently opened titles stay in this browser. Use <strong>Export list</strong> in My list to keep a backup or move it to another device.</p><a class="button button-primary" href="messages.html?archive=1">Explore the original archive ↗</a></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<input type="file" id="import-file" accept="application/json,.json" hidden>
+<noscript><div class="noscript-note">Enable JavaScript to browse the catalog, or <a href="messages.html?archive=1">open the original archive</a>.</div></noscript>
 </body>
 </html>
