@@ -1,0 +1,168 @@
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icons = {
+  plus:'<path d="M12 5v14M5 12h14"/>', check:'<path d="m5 12 4 4L19 6"/>',
+  arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>', left:'<path d="m14 6-6 6 6 6"/>',right:'<path d="m10 6 6 6-6 6"/>',
+  external:'<path d="M14 3h7v7m0-7L10 14M10 3H4v17h17v-6"/>',
+  play:'<path d="m8 4 13 8-13 8z" fill="currentColor" stroke="none"/>',
+  bookmark:'<path d="M5 3h14v19l-7-5-7 5z"/>', share:'<path d="M12 16V3m-5 5 5-5 5 5M5 14v7h14v-7"/>',
+  download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',upload:'<path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/>',
+  shuffle:'<path d="m17 3 4 4-4 4M3 17h3c4 0 5-10 9-10h6M17 13l4 4-4 4M3 7h3c1 0 2 .7 3 2M15 17h6"/>',
+  search:'<circle cx="10.8" cy="10.8" r="7.2"/><path d="m16 16 5 5"/>',link:'<path d="m10 13 4-4M9 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M15 8l2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0"/>'
+};
+const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name] || icons.arrow}</svg>`;
+const main = $('#main'), movieDialog = $('#movie-dialog');
+let catalog, movies = [], byId = new Map(), saved = [], recent = [], favorites = [], state = {}, shown = 48, heroIndex = 0, searchTimer, toastTimer, openedFromUI = false, lastFocus, refreshHome = false;
+const KEYS = {saved:'southscreen-list-v1',recent:'southscreen-recent-v1',favorites:'southscreen-favorites-v1'};
+const featured = [2027,1958,3012];
+const picks = [2027,1958,3012,2226,1752,2540,2690,2826,1999,1425,2095,2691];
+const heroCopy = {
+  2027:['The big-screen feeling. Wherever you are.','Settle in for an epic pick from the collection. Discover the available editions of RRR.'],
+  1958:['Make it an action kind of night.','Turn up the intensity with Salaar. Choose an available source and make a night of it.'],
+  3012:['Your next twist starts here.','In the mood for something gripping? Explore Maharaja and find your next movie night.']
+};
+const cleanQuery = s => String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+const validImage = path => typeof path === 'string' && /^photos\/[A-Za-z0-9_@.() -]+\.(?:jpe?g|png|webp)$/i.test(path);
+const imagePath = movie => validImage(movie.thumbnail) ? '../'+movie.thumbnail : validImage(movie.poster) ? '../'+movie.poster : '../assets/favicon.svg';
+const quality = movie => ['2160p','1080p','720p','480p'].find(q => movie.sources.some(s => s.label === q));
+const qualityText = movie => ({'2160p':'4K','1080p':'1080P','720p':'720P','480p':'480P'}[quality(movie)] || 'FILM');
+const qualityOrder = label => ({'2160p':0,'1080p':1,'720p':2,'480p':3}[label] ?? 20);
+const spellingAliases = [['baahubali','bahubali'],['maharaja','maharajaa'],['vikram','vikramm']];
+const titleAliases = title => { const plain=cleanQuery(title).replace(/\s/g,'');return spellingAliases.filter(pair=>pair.some(word=>plain.includes(word))).flat().join(' '); };
+const sourceURL = value => { try { const u = new URL(value); return ['https:','http:'].includes(u.protocol) && !u.username && !u.password ? u.href : null; } catch { return null; } };
+const dateText = value => new Intl.DateTimeFormat('en-IN',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value + 'T00:00:00Z'));
+const number = n => n.toLocaleString('en-IN');
+const href = values => '#' + new URLSearchParams(Object.entries(values).filter(([,v]) => v !== '' && v !== undefined && v !== null)).toString();
+const movieHref = id => href({...state,movie:id});
+function readStore(key) { try { const a = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
+function writeStore(key,value) { try { localStorage.setItem(key,JSON.stringify(value)); return true; } catch { toast('Storage is unavailable. Export your list to keep it.'); return false; } }
+function canonicalIds(ids) { return [...new Set(ids.map(id => byId.get(Number(id))?.id).filter(Boolean))]; }
+function toast(message) { $('#toast').textContent=message; $('#toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),3200); }
+function navigate(values = {}, replace = false) { const next = href(values); if (location.hash===next) route(); else if (replace) {history.replaceState(null,'',next);route();} else location.hash=next; }
+function saveButton(movie, cls = 'card-save') { const has=saved.includes(movie.id); return `<button class="${cls}${has?' saved':''}" data-action="save" data-id="${movie.id}" aria-label="${has?'Remove':'Save'} ${esc(movie.title)}${has?' from':' to'} my list" aria-pressed="${has}">${icon(has?'check':'plus')}${cls.includes('button')?`<span>${has?'In my list':'My list'}</span>`:''}</button>`; }
+function favoriteButton(m) { const has=favorites.includes(m.id);return '<button class="button favorite-button'+(has?' favorited':'')+'" type="button" data-action="favorite" data-id="'+m.id+'" aria-pressed="'+has+'" aria-label="'+(has?'Remove from favorites':'Add to favorites')+'">'+icon('bookmark')+'<span>'+(has?'Favorited':'Favorite')+'</span></button>'; }
+function card(movie, rank = 0) { return `<article class="movie-card${rank?' ranked':''}" data-card="${movie.id}"><a class="poster-link" href="${esc(movieHref(movie.id))}" data-movie="${movie.id}" aria-label="View ${esc(movie.title)} (${movie.year})"><img src="${esc(imagePath(movie))}" alt="${esc(movie.title)} poster" loading="lazy" decoding="async" width="300" height="435"><span class="missing-poster" aria-hidden="true">${esc(movie.title)}</span><span class="card-quality">${qualityText(movie)}</span>${rank?`<span class="card-rank" aria-hidden="true">${rank}</span>`:''}</a>${saveButton(movie)}<div class="card-info"><h3><a href="${esc(movieHref(movie.id))}" data-movie="${movie.id}">${esc(movie.title)}</a></h3><p><span>${movie.year}</span><span class="meta-dot"></span><span>${esc(movie.genres[0] || movie.type)}</span>${movie.languages.includes('Hindi')?'<span class="meta-dot"></span><span>Hindi</span>':''}</p></div></article>`; }
+function row(title, subtitle, items, filter = {}, id = '', ranked = false) { if (!items.length) return ''; return `<section class="collection-section"><div class="section-heading"><div><h2>${esc(title)}</h2><p>${esc(subtitle)}</p></div><div class="section-tools"><a class="text-button" href="${esc(href({view:'browse',...filter}))}">View all ${icon('arrow')}</a><button class="icon-button" data-action="scroll-row" data-direction="-1" data-row="${id}" aria-label="Scroll ${esc(title)} left">${icon('left')}</button><button class="icon-button" data-action="scroll-row" data-direction="1" data-row="${id}" aria-label="Scroll ${esc(title)} right">${icon('right')}</button></div></div><div class="movie-row" id="${id}">${items.map((m,i)=>card(m,ranked?i+1:0)).join('')}</div></section>`; }
+function renderHero() { const m=byId.get(featured[heroIndex]) || movies[0], copy=heroCopy[m.id] || ['', 'Explore this title from the collection.']; return `<section class="hero" aria-label="Featured movie"><div class="hero-art"><img src="${esc(validImage(m.poster)?'../'+m.poster:'../assets/favicon.svg')}" alt="" fetchpriority="high" width="1000" height="650"></div><div class="hero-content"><p class="eyebrow"><span class="dash"></span>IN THE SPOTLIGHT</p><h1 class="${m.title.length>8?'long-title':''}">${esc(m.title)}</h1><div class="metadata"><span>${m.year}</span><span class="meta-dot"></span><span>${esc(m.genres.slice(0,2).join(' · '))}</span><span class="meta-dot"></span><span>${m.languages.includes('Hindi')?'Hindi available':esc(m.languages[0] || m.type)}</span><span class="quality-tag">${qualityText(m)}</span></div><p class="hero-description">${esc(copy[0])}<br>${esc(copy[1])}</p><div class="hero-actions"><a class="button button-primary" href="${esc(movieHref(m.id))}" data-movie="${m.id}">${icon('play')}Explore movie</a>${saveButton(m,'button button-quiet')}</div><p class="hero-note">Choose a source to open on its original provider.</p></div><div class="hero-bottom"><div class="hero-position">THE SPOTLIGHT COLLECTION <span>0${heroIndex+1} / 0${featured.length}</span></div><div class="hero-controls"><div class="hero-dots">${featured.map((id,i)=>`<button data-action="hero" data-index="${i}" class="${i===heroIndex?'active':''}" aria-label="Feature ${esc(byId.get(id)?.title)}" aria-pressed="${i===heroIndex}"></button>`).join('')}</div><button class="icon-button" data-action="hero" data-index="${(heroIndex+featured.length-1)%featured.length}" aria-label="Previous featured movie">${icon('left')}</button><button class="icon-button" data-action="hero" data-index="${(heroIndex+1)%featured.length}" aria-label="Next featured movie">${icon('right')}</button></div></div></section>`; }
+function renderHome() { main.innerHTML = renderHero()+`<div class="page-wrap"><div class="discovery-bar"><span class="discovery-label">FIND YOUR MOOD</span><nav class="genre-tabs" aria-label="Browse genres"><a class="pill active" href="#view=browse">All movies</a>${['Action','Thriller','Comedy','Drama','Romance','Sci-Fi','Adventure'].map(g=>`<a class="pill" href="${href({view:'browse',genre:g})}">${g}</a>`).join('')}</nav></div>${row('A great place to start','Big stories. Unforgettable characters. Your next movie night.',picks.map(id=>byId.get(id)).filter(Boolean),{},'picks')}${favorites.length?row('Your favorites','Movies you have marked as favorites.',favorites.map(id=>byId.get(id)).filter(Boolean).slice(0,12),{view:'list',favorites:'1'},'favorites'):''}${recent.length?row('Recently opened','Pick up a title you explored before.',recent.map(x=>byId.get(x)).filter(Boolean).slice(0,12),{recent:'1'},'recent'):''}${row('Fresh in the collection','The latest additions from the archive.',movies.slice(0,12),{sort:'recent'},'new')}<section class="editorial-strip"><div><p class="eyebrow">LESS SCROLLING. MORE DISCOVERING.</p><h2>A little indecisive? We get it.</h2><p>Let us pick something from the collection for your next movie night.</p></div><button class="button" data-action="random">${icon('shuffle')}Surprise me</button></section>${row('Turn up the intensity','Action, intrigue, and one-more-scene energy.',movies.filter(m=>m.genres.includes('Thriller')).slice(0,12),{genre:'Thriller'},'thrillers')}<section class="collection-section"><div class="section-heading"><div><h2>What are you in the mood for?</h2><p>There’s a story for every kind of night.</p></div></div><div class="mood-grid">${[['Action','Go big. Feel everything.','#38231f','A'],['Comedy','A little lighter. A lot funnier.','#25312c','C'],['Romance','Let your heart choose.','#37202e','R'],['Mystery','Follow your curiosity.','#252638','M']].map(([g,desc,color,letter])=>`<a class="mood-card" style="--mood:${color}" data-letter="${letter}" href="${href({view:'browse',genre:g})}"><h3>${g}</h3><p>${desc}</p>${icon('arrow')}</a>`).join('')}</div></section>${row('Find a Telugu audio title','Explore movies labeled with Telugu audio in the archive.',movies.filter(m=>m.languages.includes('Telugu')).slice(0,12),{language:'Telugu'},'telugu')}${row('Tamil audio picks','Browse titles labeled with Tamil audio.',movies.filter(m=>m.languages.includes('Tamil')).slice(0,12),{language:'Tamil'},'tamil')}${row('Something to smile about','Make room for a lighter movie night.',movies.filter(m=>m.genres.includes('Comedy')).slice(0,12),{genre:'Comedy'},'comedy')}<div class="collection-end"><p><strong>${number(movies.length)} titles. Countless movie nights.</strong><br>Explore the whole collection, your way.</p><a class="button button-quiet" href="#view=browse">Browse all movies ${icon('arrow')}</a></div></div>`; }
+function option(value,label,selected) { return `<option value="${esc(value)}"${String(value)===String(selected)?' selected':''}>${esc(label)}</option>`; }
+function filterControl(key,label,values,all) { return `<div class="filter-control"><label for="filter-${key}">${label}</label><select id="filter-${key}" data-filter="${key}">${option('',all,state[key])}${values.map(v=>option(v,v,state[key])).join('')}</select></div>`; }
+function filterMovies() { let items=state.view==='list'?(state.favorites==='1'?favorites:saved).map(id=>byId.get(id)).filter(Boolean):state.recent==='1'?recent.map(id=>byId.get(id)).filter(Boolean):movies;
+  const terms=cleanQuery(state.q || '').split(' ').filter(Boolean);
+  items=items.filter(m=>(!state.genre||m.genres.includes(state.genre))&&(!state.year||String(m.year)===state.year)&&(!state.language||m.languages.includes(state.language))&&(!state.type||m.type===state.type)&&(!state.quality||m.sources.some(s=>s.label===state.quality))&&terms.every(t=>m.search.includes(t)));
+  const compare={title:(a,b)=>a.title.localeCompare(b.title),year:(a,b)=>b.year-a.year||b.id-a.id,reactions:(a,b)=>b.reactions-a.reactions||b.id-a.id,recent:(a,b)=>b.added.localeCompare(a.added)||b.id-a.id};
+  if(compare[state.sort] || (!state.sort&&state.view!=='list'&&state.recent!=='1'))items=[...items].sort(compare[state.sort]||compare.recent);
+  return items;
+}
+function renderBrowse() { const list=state.view==='list', items=filterMovies(), genres=[...new Set(movies.flatMap(m=>m.genres))].sort(), years=[...new Set(movies.map(m=>m.year))].sort((a,b)=>b-a), languages=[...new Set(movies.flatMap(m=>m.languages))].sort();
+  const title=list?(state.favorites==='1'?'Your favorites.':'Your next movie night.'):state.q?`Results for “${state.q}”`:state.recent==='1'?'Recently opened':state.genre?`${state.genre}, in every shade.`:'Find your next favourite.';
+  main.innerHTML=`<div class="page-wrap"><header class="browse-head"><p class="eyebrow">${list?'MY LIST':'THE COLLECTION'}</p><h1>${esc(title)}</h1><p>${list?'All the stories you’ve saved, together in one place.':state.recent==='1'?'Titles whose source links you opened in this browser.':`Explore ${number(movies.length)} titles. Follow a mood, a language, or a little curiosity.`}</p>${list?`<div class="list-actions"><a class="pill" href="#view=list">Saved list</a><a class="pill" href="#view=list&favorites=1">Favorites</a><button class="button" data-action="export">${icon('download')}Export list</button><button class="button" data-action="import">${icon('upload')}Import list</button></div>`:''}</header><div class="filter-bar">${filterControl('genre','Genre',genres,'All genres')}${filterControl('year','Year',years,'All years')}${filterControl('language','Audio',languages,'All languages')}${filterControl('quality','Quality',['2160p','1080p','720p','480p'],'Any quality')}${filterControl('type','Type',['Movie','Series'],'All types')}<button class="filter-clear" data-action="clear-filters">Reset filters</button></div><div class="results-toolbar"><span role="status" aria-live="polite"><strong>${number(items.length)}</strong> ${items.length===1?'title':'titles'}${state.q?' found':''}${list?' saved':''}</span><label>Sort by <select id="sort" aria-label="Sort movies">${list?option('saved','Recently saved',state.sort||'saved'):''}${state.recent==='1'?option('opened','Recently opened',state.sort||'opened'):''}${option('recent','Recently added',state.sort||(!list&&state.recent!=='1'?'recent':''))}${option('year','Newest release year',state.sort)}${option('title','Title A–Z',state.sort)}${option('reactions','Archive reactions',state.sort)}</select></label></div>${items.length?`<div class="movie-grid">${items.slice(0,shown).map(m=>card(m)).join('')}</div><div class="load-more">${items.length>shown?`<button class="button button-quiet" data-action="load-more">Show more movies <span>(${number(items.length-shown)} left)</span></button>`:`<p class="list-privacy">${list?'Saved in this browser. Export your list to keep a backup.':'You’ve reached the end of this collection.'}</p>`}</div>`:`<div class="empty-state"><div class="empty-icon">${icon(list&&!saved.length?'bookmark':'search')}</div><h2>${list&&!saved.length?'Good movies are worth saving.':'No titles found this time.'}</h2><p>${list&&!saved.length?'Tap the + on any movie to build your own watchlist. Your list stays in this browser.':'Try a different title or reset a filter to discover more of the collection.'}</p>${list&&!saved.length?'<a class="button button-primary" href="#view=browse">Explore the collection</a>':'<button class="button button-primary" data-action="clear-filters">Reset search and filters</button>'}</div>`}</div>`;
+}
+function updateSavedUI() { $('[data-action="favorite"]').forEach(btn=>{const m=byId.get(Number(btn.dataset.id));if(!m)return;const has=favorites.includes(m.id);btn.classList.toggle('favorited',has);btn.setAttribute('aria-pressed',String(has));btn.setAttribute('aria-label',(has?'Remove from favorites':'Add to favorites'));btn.innerHTML=icon('bookmark')+'<span>'+(has?'Favorited':'Favorite')+'</span>';}); $('.saved-count').forEach(el=>el.textContent=saved.length); $$('[data-action="save"]').forEach(btn=>{ const m=byId.get(Number(btn.dataset.id));if(!m)return;const has=saved.includes(m.id);btn.classList.toggle('saved',has);btn.setAttribute('aria-pressed',String(has));btn.setAttribute('aria-label',`${has?'Remove':'Save'} ${m.title}${has?' from':' to'} my list`);btn.innerHTML=icon(has?'check':'plus')+(btn.classList.contains('button')?`<span>${has?'In my list':'My list'}</span>`:''); }); }
+function toggleFavorite(id) {
+  const m=byId.get(id);if(!m)return;
+  const was=favorites.includes(m.id);
+  favorites=was?favorites.filter(x=>x!==m.id):[m.id,...favorites];
+  const persisted=writeStore(KEYS.favorites,favorites);
+  if(state.view==='list')renderBrowse();
+  if(state.view==='home'){renderHome();refreshHome=false;}
+  updateSavedUI();
+  if(persisted)toast(was?'Removed from favorites':'Added to favorites');
+}
+function toggleSave(id) { const m=byId.get(id);if(!m)return;const has=saved.includes(m.id);saved=has?saved.filter(x=>x!==m.id):[m.id,...saved];const persisted=writeStore(KEYS.saved,saved);if(state.view==='list')renderBrowse();updateSavedUI();if(persisted)toast(has?'Removed from your list':'Saved to your list'); }
+
+function hideSuggestions() {
+  const panel=$('#search-suggestions');
+  panel.hidden=true;
+  panel.innerHTML='';
+  $('#search').setAttribute('aria-expanded','false');
+}
+function updateSuggestions() {
+  const input=$('#search'), panel=$('#search-suggestions'), query=cleanQuery(input.value);
+  if(!catalog||!query||movieDialog.open){hideSuggestions();return;}
+  const matches=movies.filter(m=>m.search.includes(query))
+    .sort((a,b)=>Number(cleanQuery(b.title).startsWith(query))-Number(cleanQuery(a.title).startsWith(query))||b.year-a.year)
+    .slice(0,6);
+  panel.innerHTML=matches.map(m=>'<button class="suggestion-item" role="option" type="button" data-suggestion="'+m.id+'"><img src="'+esc(imagePath(m))+'" alt="" loading="lazy"><span class="suggestion-copy"><strong>'+esc(m.title)+'</strong><small>'+esc(m.year)+' · '+esc(m.genres[0]||m.type)+'</small></span></button>').join('');
+  panel.hidden=!matches.length;
+  input.setAttribute('aria-expanded',String(!panel.hidden));
+}
+
+function showMovie(id) { hideSuggestions(); const m=byId.get(id);if(!m){toast('This title is no longer in the collection.');closeMovie();return;}lastFocus=document.activeElement;
+  const groups=new Map();for(const s of m.sources){const url=sourceURL(s.url);if(!url)continue;const host=new URL(url).hostname.replace(/^www\./,'');if(!groups.has(host))groups.set(host,[]);groups.get(host).push({...s,url});}
+  const provider=([host,links])=>`<div class="provider" data-provider><h4>${icon('link')}${esc(host)}</h4><div class="source-links">${[...links].sort((a,b)=>qualityOrder(a.label)-qualityOrder(b.label)).map((s,i)=>`<a class="source-link" data-source-label="${esc(s.label)}" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" data-source="${m.id}" aria-label="Open ${esc(m.title)} ${esc(s.label)} on ${esc(host)} in a new tab">${esc(s.label==='Source link'?`Source ${i+1}`:s.label)}${icon('external')}</a>`).join('')}</div></div>`;
+  const groupEntries=[...groups];
+  const rankedRelated=x=>x.genres.filter(g=>m.genres.includes(g)).length*8+(x.type===m.type?2:0)+(x.languages.some(l=>m.languages.includes(l))?2:0)+Math.max(0,3-Math.floor(Math.abs(x.year-m.year)/5));
+  const related=movies.filter(x=>x.id!==m.id&&x.genres.some(g=>m.genres.includes(g))).sort((a,b)=>rankedRelated(b)-rankedRelated(a)||b.added.localeCompare(a.added)).slice(0,4);
+  const sourceQualities=[...new Set(m.sources.map(s=>s.label).filter(q=>qualityOrder(q)<20))].sort((a,b)=>qualityOrder(a)-qualityOrder(b));
+  const qualityControls=sourceQualities.length>1?'<div class="source-quality-controls" role="group" aria-label="Filter source links by quality"><button class="source-quality-button" type="button" data-action="source-quality" data-quality="all" aria-pressed="true">All qualities</button>'+sourceQualities.map(q=>'<button class="source-quality-button" type="button" data-action="source-quality" data-quality="'+esc(q)+'" aria-pressed="false">'+esc(q==='2160p'?'4K':q)+'</button>').join('')+'</div>':'';
+  movieDialog.innerHTML=`<button class="dialog-close icon-button" data-action="close-movie" aria-label="Close movie details">✕</button><div class="detail-top"><img class="detail-poster" src="${esc(validImage(m.poster)?'../'+m.poster:'../assets/favicon.svg')}" alt="${esc(m.title)} poster" width="300" height="450"><div class="detail-info"><p class="eyebrow">${m.type==='Series'?'SERIES':'FROM THE COLLECTION'}</p><h2 id="movie-title">${esc(m.title)}</h2><div class="metadata"><span>${m.year}</span><span class="meta-dot"></span><span>${esc(m.type)}</span><span class="quality-tag">${qualityText(m)}</span></div><div class="detail-genres">${m.genres.map(g=>`<a class="pill" href="${href({view:'browse',genre:g})}">${esc(g)}</a>`).join('')}</div><p class="detail-label">Available audio</p><p class="detail-language">${esc(m.languages.join(' · ') || 'Not specified in the archive')}</p><div class="detail-actions">${saveButton(m,'button button-primary')}${favoriteButton(m)}<button class="button" data-action="share" data-id="${m.id}">${icon('share')}Share</button></div><p class="detail-note">Quality and language labels are taken from the original posts.</p></div></div><section class="source-panel"><div class="source-heading"><h3>Choose your source</h3><span>${m.sources.filter(s=>sourceURL(s.url)).length} recorded source links</span></div><p>External providers open in a new tab. Link availability and labeled video quality have not been independently verified.</p>${qualityControls}${groupEntries.slice(0,2).map(provider).join('')}${groupEntries.length>2?`<details class="more-sources"><summary>More providers (${groupEntries.length-2})</summary>${groupEntries.slice(2).map(provider).join('')}</details>`:''}<div class="source-provenance"><span>Added to the archive ${dateText(m.added)}</span></div></section><section class="related-movies"><h3>More in the same mood</h3><div class="related-row">${related.map(x=>card(x)).join('')}</div></section>`;
+  if(!movieDialog.open)movieDialog.showModal();movieDialog.scrollTop=0;document.body.style.overflow='hidden';document.title=`${m.title} (${m.year}) — Southscreen`;
+}
+function closeMovie() { if(!state.movie&&!movieDialog.open)return;if(openedFromUI){openedFromUI=false;history.back();}else{const {movie,...rest}=state;navigate(rest,true);} }
+function route() { if(!catalog)return;const previous={...state};const p=new URLSearchParams(location.hash.slice(1));state=Object.fromEntries([...p].filter(([k])=>['view','q','genre','year','language','quality','type','sort','movie','recent','favorites'].includes(k)));state.view=['home','browse','list'].includes(state.view)?state.view:'home';if(state.q)state.q=state.q.slice(0,180);if(state.view==='home'&&(state.q||state.genre||state.year||state.language||state.type))state.view='browse';
+  const underlyingChanged=JSON.stringify({...previous,movie:undefined})!==JSON.stringify({...state,movie:undefined});
+  if(underlyingChanged||!main.dataset.loaded||(refreshHome&&state.view==='home'&&!state.movie)){shown=48;state.view==='home'?renderHome():renderBrowse();refreshHome=false;main.dataset.loaded='true';if(underlyingChanged&&!state.q)window.scrollTo({top:0,behavior:'instant'});}
+  $('#search').value=state.q||'';$$('[data-nav]').forEach(a=>{const active=a.dataset.nav===state.view;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});updateSavedUI();
+  if(state.movie){if(state.movie!==previous.movie||!movieDialog.open)showMovie(Number(state.movie));}else{if(movieDialog.open){movieDialog.close();document.body.style.overflow='';if(lastFocus?.isConnected)lastFocus.focus({preventScroll:true});}document.title=`${state.view==='list'?'My list':state.view==='browse'?'Browse movies':'Cinema, collected.'} — Southscreen`;}
+}
+async function shareMovie(id) {const url=new URL(location.href);url.hash=new URLSearchParams({view:'browse',movie:id});try{await navigator.clipboard.writeText(url.href);toast('Movie link copied');}catch{const input=document.createElement('input');input.value=url.href;movieDialog.append(input);input.select();const copied=document.execCommand('copy');input.remove();toast(copied?'Movie link copied':'Copy the movie link from your address bar');}}
+function exportList() { const blob=new Blob([JSON.stringify({format:'southscreen-watchlist',version:1,exportedAt:new Date().toISOString(),ids:saved,titles:saved.map(id=>({id,title:byId.get(id).title,year:byId.get(id).year}))},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob), a=document.createElement('a');a.href=url;a.download='southscreen-watchlist.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Watchlist exported'); }
+document.addEventListener('click',event=>{
+  const suggestion=event.target.closest('[data-suggestion]');
+  if(suggestion){event.preventDefault();hideSuggestions();openedFromUI=!movieDialog.open;navigate({view:'browse',movie:suggestion.dataset.suggestion});return;}
+  if(!event.target.closest('.search-wrap'))hideSuggestions();
+  const movieLink=event.target.closest('[data-movie]');if(movieLink&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey){event.preventDefault();if(!movieDialog.open)openedFromUI=true;navigate({...state,movie:movieLink.dataset.movie},movieDialog.open);return;}
+  const source=event.target.closest('[data-source]');if(source){const id=Number(source.dataset.source);recent=[id,...recent.filter(x=>x!==id)].slice(0,30);writeStore(KEYS.recent,recent);refreshHome=true;return;}
+  const nav=event.target.closest('[data-nav]');if(nav){event.preventDefault();navigate({view:nav.dataset.nav});return;}
+  const btn=event.target.closest('[data-action]');if(!btn||!catalog)return;
+  switch(btn.dataset.action){
+    case'save':toggleSave(Number(btn.dataset.id));break;
+    case'favorite':toggleFavorite(Number(btn.dataset.id));break;
+    case'hero':{heroIndex=Number(btn.dataset.index);const focused=btn.getAttribute('aria-label');$('.hero').outerHTML=renderHero();const replacement=$$('.hero [aria-label]').find(x=>x.getAttribute('aria-label')===focused);replacement?.focus({preventScroll:true});break;}
+    case'scroll-row':{const el=document.getElementById(btn.dataset.row);el?.scrollBy({left:el.clientWidth*.85*Number(btn.dataset.direction),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});break;}
+    case'random':{const pool=state.view==='home'?movies:filterMovies();if(!pool.length){toast('Reset your filters to find a movie');break;}const m=pool[Math.floor(Math.random()*pool.length)];openedFromUI=!movieDialog.open;navigate({...state,movie:m.id},movieDialog.open);break;}
+    case'close-movie':closeMovie();break;
+    case'share':shareMovie(Number(btn.dataset.id));break;
+    case'source-quality':{
+      const chosen=btn.dataset.quality;
+      $('.source-quality-button',movieDialog).forEach(el=>el.setAttribute('aria-pressed',String(el===btn)));
+      $('.source-link',movieDialog).forEach(el=>{el.hidden=chosen!=='all'&&el.dataset.sourceLabel!==chosen;});
+      $('.provider',movieDialog).forEach(el=>{el.hidden=!$('.source-link',el).some(link=>!link.hidden);});
+      const extra=$('.more-sources',movieDialog);
+      if(extra&&chosen!=='all')extra.open=true;
+      break;
+    }
+    case'about':$('#about-dialog').showModal();break;
+    case'close-about':$('#about-dialog').close();break;
+    case'clear-filters':navigate({view:state.view==='list'?'list':'browse'});break;
+    case'load-more':{const pos=scrollY;shown+=48;renderBrowse();scrollTo(0,pos);$('.movie-grid .movie-card:nth-child('+(shown-47)+') a')?.focus({preventScroll:true});break;}
+    case'export':exportList();break;
+    case'import':$('#import-file').click();break;
+    case'retry':location.reload();break;
+  }
+});
+document.addEventListener('change',event=>{if(event.target.matches('[data-filter]'))navigate({...state,[event.target.dataset.filter]:event.target.value,movie:undefined});if(event.target.id==='sort')navigate({...state,sort:event.target.value});});
+document.addEventListener('error',event=>{if(event.target instanceof HTMLImageElement){const a=event.target.closest('.poster-link');if(a)a.classList.add('broken-image');} },true);
+movieDialog.addEventListener('cancel',event=>{event.preventDefault();closeMovie();});
+movieDialog.addEventListener('click',event=>{if(event.target===movieDialog){const r=movieDialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeMovie();}});
+$('#search-form').addEventListener('submit',event=>{event.preventDefault();hideSuggestions();clearTimeout(searchTimer);navigate({view:'browse',q:$('#search').value.trim()});$('#search').blur();});
+$('#search').addEventListener('input',()=>{updateSuggestions();clearTimeout(searchTimer);searchTimer=setTimeout(()=>navigate({view:'browse',q:$('#search').value.trim()},true),220);});
+$('#search').addEventListener('focus',updateSuggestions);
+$('.search-wrap').addEventListener('focusout',event=>{if(!event.relatedTarget||!event.currentTarget.contains(event.relatedTarget))hideSuggestions();});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!$('#search-suggestions').hidden){hideSuggestions();$('#search').focus();return;}
+  if(event.key==='ArrowDown'&&event.target.id==='search'&&!$('#search-suggestions').hidden){event.preventDefault();$('.suggestion-item')?.focus();return;}
+  if(event.target instanceof Element && event.target.matches('.suggestion-item')&&(event.key==='ArrowDown'||event.key==='ArrowUp')){
+    event.preventDefault();
+    const items=$('.suggestion-item'),i=items.indexOf(event.target),next=items[i+(event.key==='ArrowDown'?1:-1)];
+    (next||$('#search')).focus();return;
+  }
+  if(event.key==='/'&&!['INPUT','SELECT','TEXTAREA'].includes(event.target.tagName)&&!movieDialog.open&&!$('#about-dialog').open){event.preventDefault();$('#search').focus();}
+});
+$('#import-file').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;try{if(file.size>2e6)throw Error();const payload=JSON.parse(await file.text());if(payload.format!=='southscreen-watchlist'||!Array.isArray(payload.ids)||payload.ids.length>10000)throw Error();const ids=canonicalIds(payload.ids);if(!ids.length&&payload.ids.length){toast('No matching titles were found in this collection.');return;}const added=ids.filter(id=>!saved.includes(id)).length;saved=[...new Set([...ids,...saved])];const persisted=writeStore(KEYS.saved,saved);if(state.view==='list')renderBrowse();updateSavedUI();if(persisted)toast(`${added} ${added===1?'title':'titles'} added to your list`);}catch{toast('Choose a valid Southscreen watchlist JSON file.');}finally{event.target.value='';}});
+window.addEventListener('hashchange',route);
+window.addEventListener('storage',event=>{if(event.key===KEYS.saved){saved=canonicalIds(readStore(KEYS.saved));if(state.view==='list')renderBrowse();updateSavedUI();}if(event.key===KEYS.recent)recent=canonicalIds(readStore(KEYS.recent));if(event.key===KEYS.favorites){favorites=canonicalIds(readStore(KEYS.favorites));if(state.view==='list')renderBrowse();if(state.view==='home')renderHome();updateSavedUI();}});
+async function init(){try{const response=await fetch('../data/catalog.json');if(!response.ok)throw Error();catalog=await response.json();if(!Array.isArray(catalog.movies)||!catalog.movies.length)throw Error();movies=catalog.movies;movies.forEach(m=>{m.search=cleanQuery([m.title,m.year,...m.genres,...m.languages,titleAliases(m.title)].join(' '));byId.set(m.id,m);m.sourceIds.forEach(id=>byId.set(id,m));});saved=canonicalIds(readStore(KEYS.saved));recent=canonicalIds(readStore(KEYS.recent));favorites=canonicalIds(readStore(KEYS.favorites));$('#collection-footer').textContent=`${number(movies.length)} titles · Made for movie nights`;const oldMessage=location.hash.match(/^#message(\d+)$/);if(oldMessage&&byId.has(Number(oldMessage[1])))history.replaceState(null,'',href({view:'browse',movie:byId.get(Number(oldMessage[1])).id}));route();}catch(error){main.innerHTML=`<div class="loading-state"><div class="loading-mark">s</div><h1>The collection couldn’t load.</h1><p>Check your connection and try again.</p><button class="button button-primary" id="retry-load">Try again</button></div>`;$('#retry-load').onclick=()=>location.reload();console.error('Catalog load failed',error);}}
+init();
