@@ -30,6 +30,11 @@ The site's watchlist and recently opened items currently live in `localStorage`.
 - [x] Improve similar-movie ranking using genre, language, type and approximate release year.
 - [x] Basic page canonical / Open Graph URL metadata.
 - [x] Add source-focused CSS and static checks.
+- [x] Personal favorites stored locally, with Favorites filtering and a homepage shelf.
+- [x] Common title spelling aliases in browse and autocomplete.
+- [x] Editorial draft workspace at `admin/editor.html` (local edits, JSON import/export only).
+- [x] Reviewed metadata layer at `data/curated.json` with safe optional synopsis, director, cast, runtime and official YouTube trailer display.
+- [x] Validate curated metadata in CI and automatically mirror the development branch into the `southscreen-2-preview` branch for the browser preview.
 
 ## Next: Phase 1 — reliability and content correctness
 
@@ -45,7 +50,7 @@ The site's watchlist and recently opened items currently live in `localStorage`.
 - [ ] Search aliases, typos and transliterations (e.g. Baahubali / Bahubali) using a curated alias list.
 - [ ] Better catalog categories and discoverability without invented popularity metrics.
 - [ ] Larger, accessible mobile targets and complete screen-reader/keyboard audits.
-- [ ] Verified metadata enrichment: cast, crew, runtime, poster credits, synopsis and official trailers; track source/license per field.
+- [ ] Populate accurate, licensed or originally written synopses, cast, director, runtime and verified official trailers via the editorial workspace. The metadata fields are implemented; the content still needs editorial review.
 - [ ] Search/filter URL and dialog history test coverage in a real browser.
 
 ## Phase 3 — publishing, performance and SEO
@@ -53,7 +58,7 @@ The site's watchlist and recently opened items currently live in `localStorage`.
 - [ ] Measure Core Web Vitals on the published site; optimize poster variants and caching with evidence.
 - [ ] Produce crawlable movie pages with conventional URLs, per-movie metadata, sitemap and only truthful schema.org Movie structured data.
 - [ ] Add curated content workflows and staged catalog releases via reviewed GitHub pull requests.
-- [ ] Make an admin interface **only** after deciding on authentication, roles and storage. Keep secrets server-side.
+- [ ] Move beyond the browser-only editorial workspace to a secure multi-user admin application after deciding on authentication, roles and backend storage. Keep secrets server-side.
 - [ ] Add staging preview/deploy checks before merging.
 
 ## Phase 4 — optional advanced features
@@ -83,3 +88,12 @@ The site's watchlist and recently opened items currently live in `localStorage`.
 Removing links to original posts from the UI does **not** make old `messages*.html` or `result.json` private. GitHub Pages does not provide file-level access control. To withhold source exports from public access, remove them from the published build and host authoring inputs separately.
 
 The catalog contains archive-derived source labels and URLs, not independently validated video availability. Respect provider terms, copyright, user privacy and regional laws. Do not use hidden or unlicensed streams.
+
+## Browser preview (development only)
+
+Open [Southscreen 2.0](https://raw.githack.com/rejoansardar23/all-south-movie/southscreen-2-preview/index.html) to preview static files through RawGitHack. This is an external third-party host and not a separate GitHub Pages deployment. The `southscreen-2-preview` mirror is kept up-to-date by `.github/workflows/update-preview.yml` when GitHub Actions permissions allow it. Cache propagation can take a few minutes.
+
+Open the [editorial workspace preview](https://raw.githack.com/rejoansardar23/all-south-movie/southscreen-2-preview/admin/editor.html) to prepare reviewed metadata. Edits remain in the current browser until the downloaded `curated.json` is committed to `data/curated.json`. This static editor has **no server-side admin authentication and no publishing privileges**.
+
+Current production GitHub Pages should remain on the default `main` branch. Never switch the production Pages source merely to preview development changes.
+
