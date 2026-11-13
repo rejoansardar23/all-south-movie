@@ -140,7 +140,7 @@ $('.search-wrap').addEventListener('focusout',event=>{if(!event.relatedTarget||!
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&!$('#search-suggestions').hidden){hideSuggestions();$('#search').focus();return;}
   if(event.key==='ArrowDown'&&event.target.id==='search'&&!$('#search-suggestions').hidden){event.preventDefault();$('.suggestion-item')?.focus();return;}
-  if(event.target.matches('.suggestion-item')&&(event.key==='ArrowDown'||event.key==='ArrowUp')){
+  if(event.target instanceof Element && event.target.matches('.suggestion-item')&&(event.key==='ArrowDown'||event.key==='ArrowUp')){
     event.preventDefault();
     const items=$('.suggestion-item'),i=items.indexOf(event.target),next=items[i+(event.key==='ArrowDown'?1:-1)];
     (next||$('#search')).focus();return;
