@@ -1,0 +1,32 @@
+name: Southscreen browser preview test
+
+on:
+  push:
+    branches: ['feature/southscreen-2']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser testing tools
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Test deployed preview in Chromium
+        run: python tools/preview_browser_smoke.py
+      - name: Save screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: southscreen-preview-chromium
+          path: /tmp/southscreen-preview-smoke.png
+          if-no-files-found: ignore
