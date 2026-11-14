@@ -1,0 +1,31 @@
+name: Southscreen quality checks
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  site-and-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate website JavaScript syntax
+        run: node --check assets/app.js
+
+      - name: Validate website runtime initialization
+        run: node tools/check_runtime.js
+
+      - name: Check frontend invariants
+        run: python3 tools/check_site.py
+
+      - name: Validate catalog and original source references
+        run: python3 tools/check_catalog.py
