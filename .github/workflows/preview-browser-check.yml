@@ -3,6 +3,8 @@ name: Southscreen browser preview test
 on:
   push:
     branches: ['feature/southscreen-2']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
