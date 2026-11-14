@@ -21,6 +21,9 @@ jobs:
       - name: Validate website JavaScript syntax
         run: node --check assets/app.js
 
+      - name: Validate website runtime initialization
+        run: node tools/check_runtime.js
+
       - name: Check frontend invariants
         run: python3 tools/check_site.py
 
