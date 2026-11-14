@@ -34,11 +34,11 @@ jobs:
           }
           request "$base/preview/" /tmp/ss-preview.html
           grep -q 'Southscreen 2.0 — Preview' /tmp/ss-preview.html
-          grep -q 'assets/app.js?v=20261114-preview-v1' /tmp/ss-preview.html
-          request "$base/preview/assets/app.js?v=20261114-preview-v1" /tmp/ss-preview.js
+          grep -q 'assets/app.js?v=20261114-preview-v2' /tmp/ss-preview.html
+          request "$base/preview/assets/app.js?v=20261114-preview-v2" /tmp/ss-preview.js
           grep -q "function updateSuggestions()" /tmp/ss-preview.js
           grep -q "fetch('../data/catalog.json')" /tmp/ss-preview.js
-          request "$base/preview/assets/site.css?v=20261114-preview-v1" /tmp/ss-preview.css
+          request "$base/preview/assets/site.css?v=20261114-preview-v2" /tmp/ss-preview.css
           grep -q 'search-suggestions' /tmp/ss-preview.css
           request "$base/data/catalog.json" /tmp/ss-catalog.json
           python3 - <<'PY'
