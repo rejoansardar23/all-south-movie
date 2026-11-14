@@ -32,9 +32,15 @@ jobs:
             done
             return 1
           }
-          request "$base/preview/" /tmp/ss-preview.html
-          grep -q 'Southscreen 2.0 — Preview' /tmp/ss-preview.html
-          grep -q 'assets/app.js?v=20261114-preview-v3' /tmp/ss-preview.html
+          for i in {1..24}; do
+            request "$base/preview/?cachecheck=$i" /tmp/ss-preview.html
+            if grep -q 'Southscreen 2.0 — Preview' /tmp/ss-preview.html && grep -q 'assets/app.js?v=20261114-preview-v3' /tmp/ss-preview.html; then
+              echo "Latest preview HTML published"
+              break
+            fi
+            if [ "$i" -eq 24 ]; then echo "Latest preview is not yet published"; exit 1; fi
+            sleep 8
+          done
           request "$base/preview/assets/app.js?v=20261114-preview-v3" /tmp/ss-preview.js
           grep -q "function updateSuggestions()" /tmp/ss-preview.js
           grep -q "fetch('../data/catalog.json')" /tmp/ss-preview.js
