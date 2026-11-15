@@ -292,7 +292,7 @@ def build(args: argparse.Namespace) -> dict:
             if alias in all_aliases:
                 raise ValueError(f"Duplicate source ID / alias across movies: {alias}")
             all_aliases.add(alias)
-    result = {**catalog, "version": 2, "movies": merged}
+    result = {**catalog, "name": "Worldscreen", "version": 2, "movies": merged}
     if not args.check_only:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
