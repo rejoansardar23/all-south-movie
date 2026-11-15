@@ -2,6 +2,12 @@
   "version": 1,
   "collections": [
     {
+      "id": "world-archive-01",
+      "path": "all bollywodd",
+      "enabled": true,
+      "description": "Newly uploaded worldwide movie archive; original folder and filenames preserved"
+    },
+    {
       "id": "bollywood-movies",
       "path": "imports/bollywood-movies",
       "enabled": true,
