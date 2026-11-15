@@ -8,6 +8,8 @@ import json
 import shutil
 from pathlib import Path
 
+from archive_paths import archive_folder
+
 ROOT = Path(__file__).resolve().parents[1]
 SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".svg"}
 
@@ -49,9 +51,10 @@ def build(output: Path, skip_media=False, clean=True):
             name = collection["id"]
             if not name.replace("-", "").isalnum() or "/" in name:
                 raise ValueError(f"Invalid collection name: {name}")
+            folder = archive_folder(ROOT, collection)
             for media_dir in ("photos", "images"):
                 count += copy_media(
-                    ROOT / "imports" / name / media_dir,
+                    folder / media_dir,
                     output / "imports" / name / media_dir
                 )
     print(json.dumps({"output": str(output), "imagesCopied": count,
