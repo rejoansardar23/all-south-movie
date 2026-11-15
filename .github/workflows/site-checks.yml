@@ -51,4 +51,5 @@ jobs:
         run: python -m pip install cfn-lint
 
       - name: Validate S3 and CloudFront template
-        run: cfn-lint aws/cloudfront-site.yaml
+        # The certificate ARN is intentionally optional for the default CloudFront test domain.
+        run: cfn-lint --ignore-checks W1030 aws/cloudfront-site.yaml
