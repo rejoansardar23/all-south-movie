@@ -13,6 +13,7 @@ Parameters:
     Type: String
     Default: ''
     Description: ACM certificate ARN in us-east-1 covering DomainName, required when DomainName is set
+    AllowedPattern: '(^$)|(^arn:aws[a-zA-Z-]*:acm:us-east-1:[0-9]{12}:certificate/[A-Za-z0-9-]+$)'
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref DomainName, '']]
 Resources:
