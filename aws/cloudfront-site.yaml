@@ -50,7 +50,7 @@ Resources:
         IPV6Enabled: true
         Comment: Southscreen static site and poster image CDN
         DefaultRootObject: index.html
-        PriceClass: PriceClass_100
+        PriceClass: PriceClass_200
         Origins:
           - Id: private-s3
             DomainName: !GetAtt SiteBucket.RegionalDomainName
