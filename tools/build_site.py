@@ -29,8 +29,8 @@ def copy_media(source: Path, target: Path):
 
 def build(output: Path, skip_media=False, clean=True):
     output = output.resolve()
-    if output == ROOT or ROOT in output.parents and output == ROOT / "imports":
-        raise ValueError("Unsafe output folder")
+    if output.name != "dist" or output == ROOT:
+        raise ValueError("Output must be a directory named dist; refusing to delete arbitrary folders")
     if clean and output.exists():
         if output == Path(output.anchor) or output == ROOT / "assets" or output == ROOT / "data":
             raise ValueError("Refusing to delete an important directory")
