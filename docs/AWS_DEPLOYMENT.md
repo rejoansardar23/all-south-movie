@@ -1,3 +1,44 @@
+# Worldscreen AWS launch — latest upload (15 November 2026)
+
+This branch uses the **Worldscreen — Cinema, Worldwide** name and keeps the existing Southscreen 2.0 interface and watchlist functionality. It supports films in Hindi, English, Tamil, Telugu, Malayalam, Kannada and other languages when present in the source metadata.
+
+**Your already-uploaded archive is in `all bollywodd/` on GitHub `main`. Do not move or rename it.** It is registered as `world-archive-01` and the importer reads that original folder directly. The compiled catalog generates collision-safe poster URLs under `imports/world-archive-01/photos/`. During AWS packaging, posters are copied from `all bollywodd/photos/` into that normalized location in `dist/`, while raw `result.json` and `messages*.html` are not published.
+
+### Update the catalog and preview before AWS
+
+```powershell
+git clone --branch feature/worldscreen-catalog-aws --single-branch https://github.com/rejoansardar23/all-south-movie.git Worldscreen
+cd .\Worldscreen
+python tools/build_multi_catalog.py --check-only
+python tools/build_multi_catalog.py
+python tools/check_catalog.py --require-import-media
+python tools/build_site.py
+python -m http.server 8000 --directory dist
+```
+
+Open `http://localhost:8000/`. The home layout, search, source buttons, filters, Favorites and My List should remain unchanged apart from the branding and language-discovery chips. Verify the number of imported movies; the original archive may include announcements without usable titles, links, or posters.
+
+### AWS deployment and canonical domain
+
+Before buying a domain, you can test using the generated `https://...cloudfront.net` domain. When you know your CloudFront hostname, build with:
+
+```powershell
+python tools/build_site.py --site-url "https://YOUR-CLOUDFRONT-DOMAIN.cloudfront.net"
+```
+
+When the custom domain and HTTPS certificate are configured, run:
+
+```powershell
+.\aws\deploy.ps1 -Bucket "YOUR-BUCKET" -DistributionId "YOUR-DISTRIBUTION-ID" -SiteUrl "https://www.yourdomain.com"
+.\aws\deploy.ps1 -Bucket "YOUR-BUCKET" -DistributionId "YOUR-DISTRIBUTION-ID" -SiteUrl "https://www.yourdomain.com" -Execute
+```
+
+The first command is a **dry run**. Do not paste AWS credentials in chat or commit them to the repository. AWS CloudFormation creates billable resources in your AWS account; review the pricing and set AWS Budget alerts first.
+
+The raw archive files already committed to public GitHub remain publicly accessible there even though the AWS deployment package excludes them. Hosting in AWS does not automatically make those GitHub files private.
+
+---
+
 # Southscreen: 10,000+ Movie Import and AWS Hosting
 
 **Branch:** `feature/southscreen-multi-archive-aws` (based on the existing Southscreen 2.0 work).
