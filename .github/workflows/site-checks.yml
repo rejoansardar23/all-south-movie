@@ -42,8 +42,13 @@ jobs:
           test ! -e dist/result.json
           test ! -e dist/messages.html
 
+      - name: Set up Python for AWS template linting
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install CloudFormation linter
-        run: python3 -m pip install --user cfn-lint
+        run: python -m pip install cfn-lint
 
       - name: Validate S3 and CloudFront template
-        run: ~/.local/bin/cfn-lint aws/cloudfront-site.yaml
+        run: cfn-lint aws/cloudfront-site.yaml
