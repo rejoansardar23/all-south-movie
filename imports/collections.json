@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "collections": [
+    {
+      "id": "bollywood-movies",
+      "path": "imports/bollywood-movies",
+      "enabled": true,
+      "description": "Bollywood films"
+    },
+    {
+      "id": "hollywood-movies",
+      "path": "imports/hollywood-movies",
+      "enabled": true,
+      "description": "Hollywood films"
+    },
+    {
+      "id": "bollywood-web-series",
+      "path": "imports/bollywood-web-series",
+      "enabled": true,
+      "description": "Bollywood web series"
+    },
+    {
+      "id": "hollywood-web-series",
+      "path": "imports/hollywood-web-series",
+      "enabled": true,
+      "description": "Hollywood web series"
+    },
+    {
+      "id": "ullu-nix-series",
+      "path": "imports/ullu-nix-series",
+      "enabled": true,
+      "description": "Other Indian web series"
+    }
+  ]
+}
