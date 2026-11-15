@@ -111,6 +111,39 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(set(updated["sourceIds"]), set(initial["sourceIds"]))
         self.assertEqual({s["url"] for s in updated["sources"]}, {s["url"] for s in initial["sources"]})
 
+    def test_root_upload_keeps_filenames_and_packages_normalized_posters(self):
+        # A user-uploaded folder can live at repository root with spaces in its name.
+        name = "world-archive-01"
+        raw = self.root / "all bollywodd"
+        (raw / "photos").mkdir(parents=True)
+        (raw / "photos/photo_1.jpg").write_bytes(b"world movie poster")
+        (raw / "result.json").write_text(json.dumps({"messages": [message(7, title="Global Cinema")]}))
+        (raw / "messages4.html").write_text(
+            '<div class="message default" id="message7">'
+            '<img class="photo" src="photos/photo_1.jpg"></div>'
+        )
+        self.manifest.write_text(json.dumps({"collections": [
+            {"id": name, "path": "all bollywodd", "enabled": True}
+        ]}))
+        result = imp.build(self.args)
+        self.assertEqual(result["titles"], 2)
+        imported = [m for m in json.loads(self.catalog.read_text())["movies"] if m.get("collectionId")]
+        self.assertEqual(imported[0]["poster"], "imports/world-archive-01/photos/photo_1.jpg")
+        self.assertTrue((raw / "photos/photo_1.jpg").exists(), "Raw poster must not be moved")
+        from archive_paths import archive_folder
+        self.assertEqual(archive_folder(self.root, {"id": name, "path": "all bollywodd"}), raw.resolve())
+        import build_site
+        with patch.object(build_site, "ROOT", self.root):
+            (self.root / "index.html").write_text("<h1>Worldscreen</h1>")
+            (self.root / "assets").mkdir()
+            (self.root / "assets/app.js").write_text("// Worldscreen")
+            build_site.build(self.root / "dist")
+            self.assertEqual(
+                (self.root / "dist/imports/world-archive-01/photos/photo_1.jpg").read_bytes(),
+                b"world movie poster")
+            self.assertFalse((self.root / "dist/all bollywodd/result.json").exists())
+            self.assertFalse((self.root / "dist/imports/world-archive-01/messages4.html").exists())
+
     def test_missing_media_or_archive_preserves_previous_catalog(self):
         self.archive(self.names[0], [message(7)])
         imp.build(self.args)
