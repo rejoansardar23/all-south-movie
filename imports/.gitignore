@@ -1,0 +1,11 @@
+# Raw archive HTML/JSON is allowed for the local importer; review it before publishing.
+# Large media belongs in AWS S3 / CloudFront, NOT the Git repository.
+# Files stay in your working copy and remain usable by the importer.
+*/photos/
+*/images/
+*/videos/
+*/media/
+*/.git/
+*/node_modules/
+**/Thumbs.db
+**/.DS_Store
