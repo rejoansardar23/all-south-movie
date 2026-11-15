@@ -29,3 +29,27 @@ jobs:
 
       - name: Validate catalog and original source references
         run: python3 tools/check_catalog.py
+
+      - name: Test multi-archive import safety
+        run: python3 tools/test_multi_catalog.py
+
+      - name: Build AWS deployment files without raw source exports
+        run: |
+          python3 tools/build_site.py --skip-media
+          test -f dist/index.html
+          test -f dist/assets/app.js
+          test -f dist/data/catalog.json
+          test ! -e dist/result.json
+          test ! -e dist/messages.html
+
+      - name: Set up Python for AWS template linting
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install CloudFormation linter
+        run: python -m pip install cfn-lint
+
+      - name: Validate S3 and CloudFront template
+        # The certificate ARN is intentionally optional for the default CloudFront test domain.
+        run: cfn-lint --template aws/cloudfront-site.yaml --ignore-checks W1030

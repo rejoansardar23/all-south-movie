@@ -23,7 +23,10 @@ const heroCopy = {
   3012:['Your next twist starts here.','In the mood for something gripping? Explore Maharaja and find your next movie night.']
 };
 const cleanQuery = s => String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
-const validImage = path => typeof path === 'string' && /^photos\/[A-Za-z0-9_@.() -]+\.(?:jpe?g|png|webp)$/i.test(path);
+const validImage = path => typeof path === 'string' && (
+  /^(?:photos|imports\/[a-z0-9-]+\/(?:photos|images))\/[A-Za-z0-9_@.() +\\-]+\.(?:jpe?g|png|webp)$/i.test(path) ||
+  /^https:\/\/[^\s/?#]+\/[^\s?#]+\.(?:jpe?g|png|webp)(?:\?[^\s#]*)?$/i.test(path)
+);
 const imagePath = movie => validImage(movie.thumbnail) ? movie.thumbnail : validImage(movie.poster) ? movie.poster : 'assets/favicon.svg';
 const quality = movie => ['2160p','1080p','720p','480p'].find(q => movie.sources.some(s => s.label === q));
 const qualityText = movie => ({'2160p':'4K','1080p':'1080P','720p':'720P','480p':'480P'}[quality(movie)] || 'FILM');

@@ -67,3 +67,19 @@ The configured publishing source is **main / (root)**. Commits to `main` are pub
 ## Validation
 
 Before publication, JavaScript syntax and catalog provenance/asset references were checked. Desktop browser checks covered the homepage, movie details, saved-list persistence after reload, search, combined year/language filters, empty results, pagination from 48 to 96 cards, and title sorting. Mobile visual checks and browser-based import/export checks were interrupted by preview-session expiry and a subsequent browser access restriction; those checks are not claimed as passed.
+
+## Import 10,000+ titles from separate exports (development branch)
+
+Southscreen has a new, backwards-compatible multi-archive import workflow. Each source gets a unique directory under `imports/<collection-id>/`, so repeated `photos/photo_1.jpg` and message IDs in different archives never overwrite each other. New catalog data works with the existing Southscreen appearance, filters, saved list, Favorites and provider links.
+
+See **[Windows import instructions and AWS hosting](docs/AWS_DEPLOYMENT.md)** and **[archive staging layout](imports/README.md)**. For the initial import:
+
+```powershell
+.\tools\stage_collection.ps1 -Source "C:\Main Dev\all bollywoodd\all bollywood movie" -CollectionId bollywood-movies -Execute
+python tools/build_multi_catalog.py --check-only
+python tools/build_multi_catalog.py
+python tools/check_catalog.py
+```
+
+AWS resources are not deployed until you choose an AWS account/bucket/domain and execute the deployment commands. The importer does **not** add descriptions, directors, cast, runtime or trailers. Media folders are ignored by Git for repository health, but are uploaded as part of the AWS deployment package.
+
