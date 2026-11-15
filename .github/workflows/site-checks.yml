@@ -52,4 +52,4 @@ jobs:
 
       - name: Validate S3 and CloudFront template
         # The certificate ARN is intentionally optional for the default CloudFront test domain.
-        run: cfn-lint --ignore-checks W1030 aws/cloudfront-site.yaml
+        run: cfn-lint --template aws/cloudfront-site.yaml --ignore-checks W1030
