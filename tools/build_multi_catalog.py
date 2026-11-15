@@ -250,6 +250,15 @@ def build(args: argparse.Namespace) -> dict:
             continue
         previous_items = previous_by_collection.pop(name, [])
         movies, info = import_collection(name, folder, args.media_base_url, previous_items)
+        # Missing ignored media must never erase titles that were imported earlier.
+        if not args.prune_unavailable:
+            present_ids = set()
+            for movie in movies:
+                present_ids.update(movie.get("sourceIds", [movie["id"]]))
+            preserved = [old for old in previous_items
+                         if not set(old.get("sourceIds", [old["id"]])).intersection(present_ids)]
+            imported.extend(preserved)
+            info["preservedPrevious"] = len(preserved)
         imported.extend(movies)
         report[name] = {"status": "imported", **info}
     # Preserve previously imported collections not currently listed in the manifest.
@@ -291,6 +300,7 @@ def main():
     parser.add_argument("--media-base-url", default="", help="Optional HTTPS URL prefix for imported images; omit for relative paths")
     parser.add_argument("--strict-missing", action="store_true", help="Fail if any enabled archive is absent")
     parser.add_argument("--prune-unlisted", action="store_true", help="Explicitly remove archived collections no longer in the manifest")
+    parser.add_argument("--prune-unavailable", action="store_true", help="Explicitly discard previously imported records absent from the source files")
     parser.add_argument("--check-only", action="store_true", help="Validate and report; do not modify the catalog")
     args = parser.parse_args()
     if args.media_base_url and not args.media_base_url.startswith("https://"):
