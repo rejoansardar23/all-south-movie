@@ -29,3 +29,6 @@ jobs:
 
       - name: Validate catalog and original source references
         run: python3 tools/check_catalog.py
+
+      - name: Test multi-archive import safety
+        run: python3 tools/test_multi_catalog.py
