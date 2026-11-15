@@ -252,8 +252,23 @@ def build(args: argparse.Namespace) -> dict:
         movies, info = import_collection(name, folder, args.media_base_url, previous_items)
         # Missing ignored media must never erase titles that were imported earlier.
         if not args.prune_unavailable:
+            old_by_id = {movie["id"]: movie for movie in previous_items}
             present_ids = set()
             for movie in movies:
+                old_movie = old_by_id.get(movie["id"])
+                if old_movie:
+                    # A partial local media checkout may contain just one of several
+                    # repeated posts. Keep previous aliases and non-duplicate links.
+                    movie["sourceIds"] = list(dict.fromkeys(movie["sourceIds"] + old_movie.get("sourceIds", [])))
+                    movie["genres"] = sorted(set(movie["genres"] + old_movie.get("genres", [])))
+                    movie["languages"] = sorted(set(movie["languages"] + old_movie.get("languages", [])))
+                    known = {(source["host"], source["label"]) for source in movie["sources"]}
+                    known_urls = {source["url"] for source in movie["sources"]}
+                    for src in old_movie.get("sources", []):
+                        if (src["host"], src["label"]) not in known and src["url"] not in known_urls:
+                            movie["sources"].append(src)
+                            known.add((src["host"], src["label"]))
+                            known_urls.add(src["url"])
                 present_ids.update(movie.get("sourceIds", [movie["id"]]))
             preserved = [old for old in previous_items
                          if not set(old.get("sourceIds", [old["id"]])).intersection(present_ids)]
