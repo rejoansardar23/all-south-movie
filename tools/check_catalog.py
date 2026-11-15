@@ -9,6 +9,7 @@ import json
 import re
 from pathlib import Path
 from urllib.parse import urlsplit
+from archive_paths import archive_folder
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = re.compile(r"^photos/[A-Za-z0-9_@.() +\-]+\.(?:jpg|jpeg|png|webp)$", re.I)
@@ -41,6 +42,9 @@ def main():
     export = json.loads((ROOT / "result.json").read_text(encoding="utf-8"))
     catalog = json.loads((ROOT / "data/catalog.json").read_text(encoding="utf-8"))
     original = {m["id"]: m for m in export["messages"]}
+    manifest_path = ROOT / "imports/collections.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"collections": []}
+    source_folders = {entry["id"]: archive_folder(ROOT, entry) for entry in manifest.get("collections", [])}
     errors, ids, aliases, source_count = [], set(), set(), 0
     for movie in catalog["movies"]:
         mid = movie["id"]
@@ -81,7 +85,14 @@ def main():
             should_exist = not imported or args.require_import_media
             # Raw import assets are ignored in Git; do not require them in CI.
             if should_exist and not is_remote:
-                present = image in known_paths if known_paths is not None else (ROOT / image).is_file()
+                if imported and name in source_folders:
+                    # Imported paths are normalized for AWS; raw files may live in a
+                    # different top-level upload folder that must not be renamed.
+                    relative = image.split("/", 2)[2]
+                    original_path = source_folders[name] / relative
+                else:
+                    original_path = ROOT / image
+                present = image in known_paths if known_paths is not None else original_path.is_file()
                 if not present:
                     errors.append(f"Missing image: {mid}/{image}")
         seen = set()
