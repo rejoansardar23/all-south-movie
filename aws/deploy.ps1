@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$Bucket,
     [Parameter(Mandatory=$true)][string]$DistributionId,
+    [string]$SiteUrl = '',
     [switch]$Execute,
     [switch]$SkipMedia
 )
@@ -12,6 +13,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "AWS CLI is not configured" }
     $args = @('tools/build_site.py')
     if ($SkipMedia) { $args += '--skip-media' }
+    if ($SiteUrl) { $args += @('--site-url', $SiteUrl) }
     & python @args
     if ($LASTEXITCODE -ne 0) { throw "Site packaging failed" }
     $target = "s3://$Bucket/"
