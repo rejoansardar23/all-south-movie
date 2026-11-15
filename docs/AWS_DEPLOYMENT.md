@@ -46,11 +46,12 @@ Install Python 3.9+ (the scripts require the standard library only). In the clon
 python tools/build_multi_catalog.py --check-only
 python tools/build_multi_catalog.py
 python tools/check_catalog.py
+python tools/check_catalog.py --require-import-media
 node --check assets/app.js
 node tools/check_runtime.js
 ```
 
-The importer reads `data/catalog.json` to preserve original titles and IDs. It adds entries only for successfully imported source collections. Rerunning it is idempotent: it replaces the previous imported records for a collection rather than duplicating them. If source images have not been copied or are excluded from a new clone, previously imported records are preserved, not silently deleted.
+The `--require-import-media` check should pass on your Windows staging computer before the first AWS upload. It will intentionally fail on CI or a fresh clone without locally copied media. The importer reads `data/catalog.json` to preserve original titles and IDs. It adds entries only for successfully imported source collections. Rerunning it is idempotent: it replaces the previous imported records for a collection rather than duplicating them. If source images have not been copied or are excluded from a new clone, previously imported records are preserved, not silently deleted.
 
 **Important:** The `--prune-unlisted` and `--prune-unavailable` flags are explicit deletion options; do not use them during normal imports.
 
