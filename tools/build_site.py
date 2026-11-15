@@ -7,6 +7,7 @@ import argparse
 import json
 import shutil
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from archive_paths import archive_folder
 
@@ -29,7 +30,7 @@ def copy_media(source: Path, target: Path):
     return count
 
 
-def build(output: Path, skip_media=False, clean=True):
+def build(output: Path, skip_media=False, clean=True, site_url=''):
     output = output.resolve()
     if output.name != "dist" or output == ROOT:
         raise ValueError("Output must be a directory named dist; refusing to delete arbitrary folders")
@@ -39,7 +40,15 @@ def build(output: Path, skip_media=False, clean=True):
         shutil.rmtree(output)
     output.mkdir(parents=True, exist_ok=True)
     for filename in ("index.html",):
-        shutil.copy2(ROOT / filename, output / filename)
+        index = (ROOT / filename).read_text(encoding="utf-8")
+        if site_url:
+            parsed = urlsplit(site_url)
+            if (parsed.scheme != "https" or not parsed.hostname or parsed.username or
+                parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/")):
+                raise ValueError("--site-url must be HTTPS origin only, e.g. https://www.example.com")
+            url = site_url.rstrip("/") + "/"
+            index = index.replace("https://rejoansardar23.github.io/all-south-movie/", url)
+        (output / filename).write_text(index, encoding="utf-8")
     shutil.copytree(ROOT / "assets", output / "assets", dirs_exist_ok=True)
     (output / "data").mkdir(exist_ok=True)
     shutil.copy2(ROOT / "data/catalog.json", output / "data/catalog.json")
@@ -65,8 +74,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     parser.add_argument("--skip-media", action="store_true", help="Fast HTML/CSS/JS/catalog build only")
+    parser.add_argument("--site-url", default="", help="HTTPS public domain for canonical and sharing metadata")
     args = parser.parse_args()
-    build(args.output, skip_media=args.skip_media)
+    build(args.output, skip_media=args.skip_media, site_url=args.site_url)
 
 
 if __name__ == "__main__":
