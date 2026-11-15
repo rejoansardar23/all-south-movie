@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from build_catalog import GENRES, get_links, normalize  # existing, tested archive parser
+from archive_paths import archive_folder
 
 COLLECTION_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
 IMAGE_RE = re.compile(r"^(photos|images)/[A-Za-z0-9_@.() +\-]+\.(?:jpg|jpeg|png|webp)$", re.I)
@@ -237,10 +238,7 @@ def build(args: argparse.Namespace) -> dict:
             imported += previous_by_collection.pop(name, [])
             report[name] = {"status": "disabled-preserved"}
             continue
-        folder = (ROOT / entry.get("path", "")).resolve()
-        root_imports = (ROOT / "imports").resolve()
-        if folder.parent != root_imports or folder.name != name:
-            raise ValueError(f"Unsafe archive location for {name}: expected imports/{name}")
+        folder = archive_folder(ROOT, entry)
         if not folder.is_dir() or not (folder / "result.json").is_file():
             if args.strict_missing:
                 raise ValueError(f"Missing source collection: {folder / 'result.json'}")
