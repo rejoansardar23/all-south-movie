@@ -32,3 +32,18 @@ jobs:
 
       - name: Test multi-archive import safety
         run: python3 tools/test_multi_catalog.py
+
+      - name: Build AWS deployment files without raw source exports
+        run: |
+          python3 tools/build_site.py --skip-media
+          test -f dist/index.html
+          test -f dist/assets/app.js
+          test -f dist/data/catalog.json
+          test ! -e dist/result.json
+          test ! -e dist/messages.html
+
+      - name: Install CloudFormation linter
+        run: python3 -m pip install --user cfn-lint
+
+      - name: Validate S3 and CloudFront template
+        run: ~/.local/bin/cfn-lint aws/cloudfront-site.yaml
