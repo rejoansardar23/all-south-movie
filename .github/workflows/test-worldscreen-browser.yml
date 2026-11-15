@@ -1,0 +1,44 @@
+name: Worldscreen AWS package browser smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-site-chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate and validate the combined catalog
+        run: |
+          python tools/build_multi_catalog.py
+          python tools/check_catalog.py --require-import-media
+      - name: Build AWS package with actual uploaded posters
+        run: |
+          python tools/build_site.py
+          test -f dist/index.html
+          test ! -e dist/result.json
+          test -d dist/imports/world-archive-01/photos
+      - name: Install headless Chromium
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Test the packaged Worldscreen UI in Chromium
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 --directory dist > /tmp/worldscreen-http.log 2>&1 &
+          python tools/check_worldscreen_browser.py
+      - name: Upload screenshot for UI review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worldscreen-browser-homepage
+          path: /tmp/worldscreen-home.png
+          if-no-files-found: ignore

@@ -1,0 +1,70 @@
+name: Build Worldscreen catalog from uploaded archives
+
+on:
+  push:
+    branches:
+      - feature/worldscreen-catalog-aws
+    paths:
+      - 'all bollywodd/**'
+      - 'imports/**'
+      - 'tools/build_multi_catalog.py'
+      - 'tools/archive_paths.py'
+      - '.github/workflows/build-worldscreen-catalog.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: worldscreen-catalog-generation
+  cancel-in-progress: false
+
+jobs:
+  import-movies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse existing archives and build catalog
+        run: |
+          python tools/build_multi_catalog.py
+          python tools/check_catalog.py
+      - name: Validate imported media references in the uploaded archive
+        run: python tools/check_catalog.py --require-import-media
+      - name: Validate complete frontend and package
+        run: |
+          node --check assets/app.js
+          node tools/check_runtime.js
+          python tools/check_site.py
+          python tools/build_site.py --skip-media
+      - name: Summarize catalog results
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          with open('data/catalog.json',encoding='utf-8') as file:
+              data=json.load(file)
+          movies=data['movies']
+          print('All movie titles:',len(movies))
+          print('Newly imported:',sum(bool(m.get('collectionId')) for m in movies))
+          print('Languages:',dict(Counter(l for m in movies for l in m.get('languages',[]))))
+          PY
+      - name: Commit validated generated catalog
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/catalog.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Generate Worldscreen merged movie catalog [skip ci]"
+            git push
+          else
+            echo "Catalog already up to date"
+          fi
