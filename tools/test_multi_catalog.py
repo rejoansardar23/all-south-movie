@@ -94,6 +94,23 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(len(imported[0]["sources"]), 2)
         self.assertEqual(len(imported[0]["sourceIds"]), 2)
 
+    def test_partial_media_preserves_link_aliases(self):
+        one = message(7, quality="1080p")
+        two = message(8, quality="720p")
+        two["photo"] = "photos/photo_2.jpg"
+        self.archive(self.names[0], [one, two])
+        (self.root / "imports/bollywood-movies/photos/photo_2.jpg").write_bytes(b"other poster")
+        imp.build(self.args)
+        initial = [m for m in json.loads(self.catalog.read_text())["movies"] if m.get("collectionId")][0]
+        self.assertEqual(len(initial["sourceIds"]), 2)
+        self.assertEqual(len(initial["sources"]), 2)
+        # The next checkout has only the first poster; previous links must survive.
+        (self.root / "imports/bollywood-movies/photos/photo_2.jpg").unlink()
+        imp.build(self.args)
+        updated = [m for m in json.loads(self.catalog.read_text())["movies"] if m.get("collectionId")][0]
+        self.assertEqual(set(updated["sourceIds"]), set(initial["sourceIds"]))
+        self.assertEqual({s["url"] for s in updated["sources"]}, {s["url"] for s in initial["sources"]})
+
     def test_missing_media_or_archive_preserves_previous_catalog(self):
         self.archive(self.names[0], [message(7)])
         imp.build(self.args)
