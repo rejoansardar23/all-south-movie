@@ -10,6 +10,8 @@ on:
       - 'tools/build_multi_catalog.py'
       - 'tools/archive_paths.py'
       - '.github/workflows/build-worldscreen-catalog.yml'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -55,6 +57,7 @@ jobs:
           print('Languages:',dict(Counter(l for m in movies for l in m.get('languages',[]))))
           PY
       - name: Commit validated generated catalog
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
